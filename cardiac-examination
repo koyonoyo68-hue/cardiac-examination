@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Cardiac Exam | Almonther</title>
+    <style>
+        /* --- CSS VARIABLES & THEMES --- */
+        :root {
+            --primary: #007bff; /* Medical Blue */
+            --primary-dark: #0056b3;
+            --accent: #ff4757; /* Heart Red */
+            --bg-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --text-color: #212529;
+            --text-muted: #6c757d;
+            --border-color: #dee2e6;
+            --shadow: 0 4px 15px rgba(0,0,0,0.05);
+            --radius: 12px;
+            --transition: all 0.3s ease;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-color: #e0e0e0;
+            --text-muted: #b0b0b0;
+            --border-color: #333;
+            --shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        /* --- GLOBAL STYLES --- */
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            transition: var(--transition);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* --- HEADER & NAV --- */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 2px solid var(--border-color);
+            margin-bottom: 30px;
+        }
+
+        h1 { margin: 0; font-size: 1.8rem; color: var(--primary); }
+        .subtitle { font-size: 0.9rem; color: var(--text-muted); }
+
+        .theme-toggle {
+            background: none;
+            border: 2px solid var(--border-color);
+            color: var(--text-color);
+            padding: 8px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: var(--transition);
+        }
+        .theme-toggle:hover { border-color: var(--primary); }
+
+        /* --- STEP NAVIGATION (WIZARD) --- */
+        .step-nav {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            position: relative;
+        }
+        .step-nav::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--border-color);
+            z-index: 0;
+            transform: translateY(-50%);
+        }
+        .step-item {
+            position: relative;
+            z-index: 1;
+            background: var(--card-bg);
+            border: 2px solid var(--border-color);
+            color: var(--text-muted);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .step-item.active {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 0 10px rgba(0,123,255,0.4);
+        }
+        .step-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: -20px;
+            margin-bottom: 30px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* --- CONTENT CARDS --- */
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 30px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+            display: none; /* Hidden by default */
+            animation: fadeIn 0.5s ease;
+        }
+        .card.active { display: block; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h2 { border-left: 5px solid var(--primary); padding-left: 15px; margin-top: 0; }
+        h3 { color: var(--primary); margin-top: 25px; }
+
+        /* --- INTERACTIVE SVG CHEST --- */
+        .svg-container {
+            text-align: center;
+            margin: 20px 0;
+            position: relative;
+        }
+        svg {
+            max-width: 100%;
+            height: auto;
+            max-height: 400px;
+            filter: drop-shadow(0 5px 5px rgba(0,0,0,0.1));
+        }
+        .valve-circle {
+            fill: rgba(255, 71, 87, 0.2);
+            stroke: var(--accent);
+            stroke-width: 2;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .valve-circle:hover {
+            fill: var(--accent);
+            fill-opacity: 0.8;
+        }
+        .valve-label {
+            font-size: 12px;
+            fill: var(--text-color);
+            font-weight: bold;
+            pointer-events: none;
+        }
+        .info-box {
+            background: var(--bg-color);
+            padding: 15px;
+            border-radius: var(--radius);
+            border: 1px solid var(--primary);
+            margin-top: 10px;
+            font-weight: 500;
+            min-height: 50px;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        /* --- AUDIO PLAYER --- */
+        .audio-player {
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        .play-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .play-btn:hover { background: var(--primary-dark); }
+
+        /* --- CHECKLIST --- */
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .checklist-item:hover { background-color: rgba(0,0,0,0.02); }
+        .checklist-item input { margin-right: 15px; transform: scale(1.2); }
+        .checklist-item.completed label {
+            text-decoration: line-through;
+            color: var(--text-muted);
+        }
+
+        /* --- QUIZ --- */
+        .quiz-option {
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .quiz-option:hover { border-color: var(--primary); }
+        .quiz-option.correct { background-color: #d4edda; border-color: #28a745; color: #155724; }
+        .quiz-option.wrong { background-color: #f8d7da; border-color: #dc3545; color: #721c24; }
+
+        /* --- NAVIGATION BUTTONS --- */
+        .nav-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+        }
+        .btn {
+            padding: 12px 25px;
+            border-radius: 30px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); transform: translateY(-2px); }
+        .btn-secondary { background: var(--text-muted); color: white; }
+        .btn-secondary:hover { opacity: 0.8; }
+
+        /* --- FOOTER --- */
+        footer {
+            text-align: center;
+            padding: 30px 0;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-top: 50px;
+            border-top: 1px solid var(--border-color);
+        }
+        .heart-beat { animation: beat 1s infinite; display: inline-block; color: var(--accent); }
+        @keyframes beat { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
+
+    </style>
+</head>
+<body data-theme="light">
+
+<div class="container">
+    
+    <header>
+        <div>
+            <h1>Cardiac Examination</h1>
+            <div class="subtitle">Based on Macleod’s Clinical Examination</div>
+        </div>
+        <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+    </header>
+
+    <div class="step-nav">
+        <div class="step-item active" onclick="goToStep(1)">1</div>
+        <div class="step-item" onclick="goToStep(2)">2</div>
+        <div class="step-item" onclick="goToStep(3)">3</div>
+        <div class="step-item" onclick="goToStep(4)">4</div>
+        <div class="step-item" onclick="goToStep(5)">5</div>
+    </div>
+    <div class="step-labels">
+        <span>Intro</span>
+        <span>Inspection</span>
+        <span>Palpation</span>
+        <span>Auscultation</span>
+        <span>Quiz</span>
+    </div>
+
+    <div id="step-1" class="card active">
+        <h2>👋 Introduction (WIPER)</h2>
+        <p>Before touching the patient, ensure you follow the core protocol:</p>
+        <ul>
+            <li><strong>W</strong>ash Hands.</li>
+            <li><strong>I</strong>ntroduce yourself.</li>
+            <li><strong>P</strong>ermission (Consent).</li>
+            <li><strong>E</strong>xposure (Chest exposed, 45° angle).</li>
+            <li><strong>R</strong>eposition (Patient comfort).</li>
+        </ul>
+        <div class="info-box" style="border-color: var(--text-muted);">
+            💡 <strong>Essential:</strong> Always approach the patient from the right side.
+        </div>
+    </div>
+
+    <div id="step-2" class="card">
+        <h2>👀 Inspection</h2>
+        <p>Look from the end of the bed, then look closer.</p>
+        
+        <h3>General Inspection</h3>
+        <ul>
+            <li><strong>Hands:</strong> Clubbing, Splinter Haemorrhages, Tar staining.</li>
+            <li><strong>Face:</strong> Malar Flush (Mitral Stenosis), Pallor (Anaemia).</li>
+            <li><strong>Neck:</strong> JVP height (Indicates right heart pressure).</li>
+        </ul>
+
+        <h3>Precordium (Chest)</h3>
+        <ul>
+            <li><strong>Scars:</strong> Midline Sternotomy (CABG/Valve), Pacemaker scar.</li>
+            <li><strong>Heaves:</strong> Visible pulsations.</li>
+        </ul>
+        
+        <div class="audio-player">
+            <span>🔊 <strong>Audio Note:</strong> Inspecting Scars</span>
+            <button class="play-btn" onclick="playSimulatedAudio()">▶</button>
+        </div>
+    </div>
+
+    <div id="step-3" class="card">
+        <h2>✋ Palpation</h2>
+        
+        <h3>1. Apex Beat</h3>
+        <p>Locate the <strong>Apex Beat</strong> (5th ICS, Mid-clavicular line).</p>
+        <ul>
+            <li>Displaced? (LV Dilation)</li>
+            <li>Tapping? (Mitral Stenosis)</li>
+            <li>Heaving? (LV Hypertrophy)</li>
+        </ul>
+
+        <h3>2. Parasternal Heave</h3>
+        <p>Place heel of hand on left sternal edge. Lift indicates RV Hypertrophy.</p>
+
+        <h3>3. Thrills</h3>
+        <p>Palpable murmurs over valve areas. Feels like a purring cat.</p>
+    </div>
+
+    <div id="step-4" class="card">
+        <h2>🩺 Auscultation</h2>
+        <p>Click on the valve areas below to see details and "hear" the sounds.</p>
+
+        <div class="svg-container">
+            <svg viewBox="0 0 300 250">
+                <path d="M70,20 Q150,5 230,20 L230,220 L70,220 Z" fill="none" stroke="var(--text-muted)" stroke-width="2"/>
+                <path d="M150,20 L150,180" fill="none" stroke="var(--text-muted)" stroke-width="3" stroke-linecap="round"/>
+                <path d="M70,30 L150,40 L230,30" fill="none" stroke="var(--text-muted)" stroke-width="2"/>
+
+                <circle cx="120" cy="70" r="12" class="valve-circle" onclick="selectValve('Aortic', '2nd ICS Right Sternal Edge. Loudest for S2.')" />
+                <text x="115" y="75" class="valve-label">A</text>
+
+                <circle cx="180" cy="70" r="12" class="valve-circle" onclick="selectValve('Pulmonary', '2nd ICS Left Sternal Edge. Loudest for S2 split.')" />
+                <text x="175" y="75" class="valve-label">P</text>
+
+                <circle cx="170" cy="140" r="12" class="valve-circle" onclick="selectValve('Tricuspid', '4th ICS Left Sternal Edge.')" />
+                <text x="165" y="145" class="valve-label">T</text>
+
+                <circle cx="200" cy="160" r="12" class="valve-circle" onclick="selectValve('Mitral', '5th ICS Mid-clavicular line. Loudest for S1.')" />
+                <text x="195" y="165" class="valve-label">M</text>
+            </svg>
+            
+            <div id="valve-info" class="info-box">
+                Tap a valve area above to learn more.
+            </div>
+        </div>
+
+        <h3>🎧 Heart Sounds Simulation</h3>
+        <div class="audio-player">
+            <span>🔊 Normal S1 + S2 (Lub-Dub)</span>
+            <button class="play-btn" onclick="playSimulatedAudio()">▶</button>
+        </div>
+        <div class="audio-player">
+            <span>🔊 Mitral Regurgitation (Pan-systolic)</span>
+            <button class="play-btn" onclick="playSimulatedAudio()">▶</button>
+        </div>
+
+    </div>
+
+    <div id="step-5" class="card">
+        <h2>📝 OSCE Checklist</h2>
+        <div id="checklist">
+            <div class="checklist-item">
+                <input type="checkbox" id="c1" onclick="toggleCheck(this)">
+                <label for="c1">Introduced, Consent, Positioning (45°)</label>
+            </div>
+            <div class="checklist-item">
+                <input type="checkbox" id="c2" onclick="toggleCheck(this)">
+                <label for="c2">Inspected hands, face, and scars</label>
+            </div>
+            <div class="checklist-item">
+                <input type="checkbox" id="c3" onclick="toggleCheck(this)">
+                <label for="c3">Palpated Apex Beat & Heaves</label>
+            </div>
+            <div class="checklist-item">
+                <input type="checkbox" id="c4" onclick="toggleCheck(this)">
+                <label for="c4">Auscultated 4 valve areas (Bell & Diaphragm)</label>
+            </div>
+            <div class="checklist-item">
+                <input type="checkbox" id="c5" onclick="toggleCheck(this)">
+                <label for="c5">Checked for Oedema (Sacral/Legs)</label>
+            </div>
+        </div>
+
+        <h2 style="margin-top: 40px;">🎓 Quick Quiz</h2>
+        <p>Where is the best place to hear the Mitral Valve?</p>
+        <div class="quiz-option" onclick="checkAnswer(this, false)">2nd ICS Right Sternal Edge</div>
+        <div class="quiz-option" onclick="checkAnswer(this, true)">5th ICS Mid-clavicular Line</div>
+        <div class="quiz-option" onclick="checkAnswer(this, false)">Left Sternal Edge</div>
+    </div>
+
+    <div class="nav-buttons">
+        <button class="btn btn-secondary" onclick="prevStep()">← Previous</button>
+        <button class="btn btn-primary" onclick="nextStep()">Next Step →</button>
+    </div>
+
+    <footer>
+        <p>Designed with <span class="heart-beat">❤</span> by <strong>Almonther</strong></p>
+        <p>For Medical Students • Clinical Skills Education</p>
+    </footer>
+
+</div>
+
+<script>
+    let currentStep = 1;
+    const totalSteps = 5;
+
+    // --- NAVIGATION LOGIC ---
+    function updateUI() {
+        // Cards
+        document.querySelectorAll('.card').forEach(el => el.classList.remove('active'));
+        document.getElementById(`step-${currentStep}`).classList.add('active');
+
+        // Nav Steps
+        document.querySelectorAll('.step-item').forEach((el, index) => {
+            if (index + 1 === currentStep) el.classList.add('active');
+            else el.classList.remove('active');
+        });
+
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function nextStep() {
+        if(currentStep < totalSteps) {
+            currentStep++;
+            updateUI();
+        }
+    }
+
+    function prevStep() {
+        if(currentStep > 1) {
+            currentStep--;
+            updateUI();
+        }
+    }
+
+    function goToStep(step) {
+        currentStep = step;
+        updateUI();
+    }
+
+    // --- INTERACTIVITY ---
+
+    // Dark Mode
+    function toggleTheme() {
+        const body = document.body;
+        const btn = document.querySelector('.theme-toggle');
+        if (body.getAttribute('data-theme') === 'light') {
+            body.setAttribute('data-theme', 'dark');
+            btn.textContent = '☀';
+        } else {
+            body.setAttribute('data-theme', 'light');
+            btn.textContent = '🌙';
+        }
+    }
+
+    // Valve Selection
+    function selectValve(name, desc) {
+        const infoBox = document.getElementById('valve-info');
+        infoBox.innerHTML = `<strong style="color:var(--primary); font-size:1.1rem;">${name} Area</strong><br>${desc}`;
+        infoBox.style.borderColor = var(--accent);
+    }
+
+    // Simulated Audio
+    function playSimulatedAudio() {
+        alert("🎧 Audio Feature: In a real deployment, this would play an .mp3 file of the heart sound.");
+    }
+
+    // Checklist Logic
+    function toggleCheck(checkbox) {
+        const parent = checkbox.parentElement;
+        if(checkbox.checked) {
+            parent.classList.add('completed');
+        } else {
+            parent.classList.remove('completed');
+        }
+    }
+
+    // Quiz Logic
+    function checkAnswer(element, isCorrect) {
+        // Reset siblings
+        let siblings = element.parentElement.querySelectorAll('.quiz-option');
+        siblings.forEach(sib => {
+            sib.classList.remove('correct', 'wrong');
+            sib.style.pointerEvents = 'none'; // Disable further clicks
+        });
+
+        if(isCorrect) {
+            element.classList.add('correct');
+            element.innerHTML += " ✅ Correct!";
+        } else {
+            element.classList.add('wrong');
+            element.innerHTML += " ❌ Incorrect. Try reviewing Step 4.";
+        }
+    }
+</script>
+
+</body>
+</html>
